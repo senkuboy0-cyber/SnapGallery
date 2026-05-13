@@ -1,6 +1,7 @@
 package com.snapgallery.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -10,6 +11,7 @@ import com.snapgallery.app.ui.screens.AlbumsScreen
 import com.snapgallery.app.ui.screens.AlbumDetailScreen
 import com.snapgallery.app.ui.screens.PhotoViewerScreen
 import com.snapgallery.app.ui.screens.MainScreen
+import com.snapgallery.app.ui.viewmodel.GalleryViewModel
 
 sealed class Screen(val route: String) {
     data object Main : Screen("main")
@@ -25,6 +27,7 @@ sealed class Screen(val route: String) {
 @Composable
 fun SnapGalleryNavHost() {
     val navController = rememberNavController()
+    val viewModel: GalleryViewModel = viewModel()
 
     NavHost(
         navController = navController,
@@ -35,7 +38,8 @@ fun SnapGalleryNavHost() {
                 onNavigateToAlbums = { navController.navigate(Screen.Albums.route) },
                 onPhotoClick = { index ->
                     navController.navigate(Screen.PhotoViewer.createRoute(index))
-                }
+                },
+                viewModel = viewModel
             )
         }
 
@@ -44,7 +48,8 @@ fun SnapGalleryNavHost() {
                 onAlbumClick = { albumId, albumName ->
                     navController.navigate(Screen.AlbumDetail.createRoute(albumId, albumName))
                 },
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                viewModel = viewModel
             )
         }
 
@@ -63,7 +68,8 @@ fun SnapGalleryNavHost() {
                 onPhotoClick = { index ->
                     navController.navigate(Screen.PhotoViewer.createRoute(index))
                 },
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                viewModel = viewModel
             )
         }
 
@@ -74,7 +80,8 @@ fun SnapGalleryNavHost() {
             val photoIndex = backStackEntry.arguments?.getInt("photoIndex") ?: 0
             PhotoViewerScreen(
                 initialIndex = photoIndex,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                viewModel = viewModel
             )
         }
     }
