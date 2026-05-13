@@ -24,21 +24,60 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private val _albumPhotos = MutableStateFlow<List<MediaItem>>(emptyList())
     val albumPhotos: StateFlow<List<MediaItem>> = _albumPhotos.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
     fun loadPhotos() {
         viewModelScope.launch {
-            _photos.value = repository.getAllPhotos()
+            _isLoading.value = true
+            _error.value = null
+            try {
+                _photos.value = repository.getAllPhotos()
+            } catch (e: Exception) {
+                _error.value = "Failed to load photos: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
     fun loadAlbums() {
         viewModelScope.launch {
-            _albums.value = repository.getAlbums()
+            _isLoading.value = true
+            _error.value = null
+            try {
+                _albums.value = repository.getAlbums()
+            } catch (e: Exception) {
+                _error.value = "Failed to load albums: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
     fun loadPhotosByAlbum(bucketId: String) {
         viewModelScope.launch {
-            _albumPhotos.value = repository.getPhotosByAlbum(bucketId)
+            _isLoading.value = true
+            _error.value = null
+            try {
+                _albumPhotos.value = repository.getPhotosByAlbum(bucketId)
+            } catch (e: Exception) {
+                _error.value = "Failed to load album photos: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
+    }
+
+    fun refreshData() {
+        loadPhotos()
+        loadAlbums()
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 }
