@@ -1,18 +1,21 @@
 package com.snapgallery.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,10 +32,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.snapgallery.app.data.model.MediaItem
+import coil.request.ImageRequest
 import com.snapgallery.app.ui.viewmodel.GalleryViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +57,13 @@ fun AlbumDetailScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(albumName) },
+                title = { 
+                    Text(
+                        text = albumName,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
@@ -76,7 +86,7 @@ fun AlbumDetailScreen(
             )
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Fixed(4),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
@@ -84,16 +94,30 @@ fun AlbumDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                itemsIndexed(albumPhotos) { index, photo ->
-                    AsyncImage(
-                        model = photo.uri,
-                        contentDescription = photo.name,
+                itemsIndexed(
+                    items = albumPhotos,
+                    key = { _, photo -> photo.id }
+                ) { index, photo ->
+                    Box(
                         modifier = Modifier
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(4.dp))
-                            .clickable { onPhotoClick(index) },
-                        contentScale = ContentScale.Crop
-                    )
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { onPhotoClick(index) }
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(photo.uri)
+                                .crossfade(true)
+                                .size(400)
+                                .build(),
+                            contentDescription = photo.name,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(4.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
             }
         }
@@ -102,20 +126,29 @@ fun AlbumDetailScreen(
 
 @Composable
 private fun EmptyAlbumState(modifier: Modifier = Modifier) {
-    androidx.compose.foundation.layout.Column(
+    Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.PhotoLibrary,
-            contentDescription = null,
-            modifier = Modifier.padding(16.dp),
-            tint = MaterialTheme.colorScheme.outline
-        )
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .clip(RoundedCornerShape(50))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = null,
+                modifier = Modifier.size(50.dp),
+                tint = MaterialTheme.colorScheme.outline
+            )
+        }
+        Spacer(modifier = Modifier.padding(16.dp))
         Text(
             text = "No photos in this album",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.outline
         )
     }
