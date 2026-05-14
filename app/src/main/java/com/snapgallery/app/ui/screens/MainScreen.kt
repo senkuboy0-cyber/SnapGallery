@@ -4,7 +4,10 @@ import android.Manifest
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.repeatMode
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -22,16 +25,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -44,17 +42,15 @@ import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Sort
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -66,7 +62,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -76,6 +71,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -231,13 +227,13 @@ fun MainScreen(
 
 @Composable
 private fun AnimatedGradientBackground() {
-    val infiniteTransition = rememberInfiniteTransition(label = "gradient")
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "gradient")
     val offset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1000f,
         animationSpec = infiniteRepeatable(
             animation = tween(20000),
-            repeatMode = RepeatMode.Reverse
+            repeatMode = repeatMode
         ),
         label = "offset"
     )
@@ -391,7 +387,7 @@ private fun SearchField(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
-            androidx.compose.material3.TextField(
+            TextField(
                 value = query,
                 onValueChange = onQueryChange,
                 placeholder = {
@@ -400,7 +396,7 @@ private fun SearchField(
                         color = MaterialTheme.colorScheme.outline
                     )
                 },
-                colors = androidx.compose.material3.TextFieldDefaults.colors(
+                colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
@@ -464,14 +460,9 @@ private fun TabButton(
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         color = if (isSelected) {
-            Brush.linearGradient(gradient)
+            MaterialTheme.colorScheme.primary
         } else {
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.surfaceVariant,
-                    MaterialTheme.colorScheme.surfaceVariant
-                )
-            )
+            MaterialTheme.colorScheme.surfaceVariant
         },
         shadowElevation = if (isSelected) 8.dp else 2.dp
     ) {
@@ -597,13 +588,13 @@ private fun WelcomePermissionScreen(onRequestPermission: () -> Unit) {
 
 @Composable
 private fun AnimatedWelcomeIcon() {
-    val infiniteTransition = rememberInfiniteTransition(label = "welcome")
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "welcome")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
         targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
             animation = tween(1500),
-            repeatMode = RepeatMode.Reverse
+            repeatMode = repeatMode
         ),
         label = "scale"
     )
@@ -814,7 +805,6 @@ private fun AnimatedPhotoItem(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(photo.uri)
                 .crossfade(true)
-                .crossfade(500)
                 .size(600)
                 .build(),
             contentDescription = photo.name,
@@ -846,8 +836,7 @@ private fun AnimatedPhotoItem(
                             .padding(8.dp)
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                            .scale(scale),
+                            .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -982,6 +971,3 @@ private fun GlassNavItem(
         )
     }
 }
-
-private fun rememberInfiniteTransition(label: String) = androidx.compose.animation.core.rememberInfiniteTransition(label)
-private fun RepeatMode.Reverse: androidx.compose.animation.core.RepeatMode get() = androidx.compose.animation.core.RepeatMode.Reverse

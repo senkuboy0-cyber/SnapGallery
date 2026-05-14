@@ -9,6 +9,7 @@ val GradientBlue = Color(0xFF3B82F6)
 val GradientCyan = Color(0xFF06B6D4)
 val GradientOrange = Color(0xFFF97316)
 val GradientGreen = Color(0xFF10B981)
+val GradientRed = Color(0xFFEF4444)
 
 // Light Theme Colors
 val PrimaryLight = Color(0xFF6C3CE9)
