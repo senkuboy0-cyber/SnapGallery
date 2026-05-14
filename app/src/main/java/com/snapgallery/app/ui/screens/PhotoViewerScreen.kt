@@ -2,24 +2,18 @@ package com.snapgallery.app.ui.screens
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -30,10 +24,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -43,17 +35,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material.icons.filled.ZoomIn
-import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -64,13 +51,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -82,7 +65,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -92,12 +74,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.snapgallery.app.data.model.MediaItem
-import com.snapgallery.app.ui.theme.GradientBlue
-import com.snapgallery.app.ui.theme.GradientCyan
 import com.snapgallery.app.ui.theme.GradientPink
 import com.snapgallery.app.ui.theme.GradientPurple
 import com.snapgallery.app.ui.viewmodel.GalleryViewModel
@@ -127,19 +106,12 @@ fun PhotoViewerScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showInfoSheet by remember { mutableStateOf(false) }
     var showControls by remember { mutableStateOf(true) }
-    var showQuickActions by remember { mutableStateOf(false) }
     var isZoomed by remember { mutableStateOf(false) }
     
     val controlsAlpha by animateFloatAsState(
         targetValue = if (showControls) 1f else 0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "controlsAlpha"
-    )
-    
-    val currentScale by animateFloatAsState(
-        targetValue = if (isZoomed) 2f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-        label = "scale"
     )
 
     LaunchedEffect(pagerState) {
@@ -234,8 +206,9 @@ fun PhotoViewerScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 100.dp)
+                    .fillMaxWidth()
+                    .padding(top = 100.dp),
+                contentAlignment = Alignment.TopCenter
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
@@ -425,17 +398,15 @@ private fun GlassIconButton(
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.size(48.dp),
+        modifier = Modifier
+            .size(48.dp)
+            .clickable(onClick = onClick),
         shape = CircleShape,
         color = Color.White.copy(alpha = 0.15f),
         shadowElevation = 4.dp
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { onClick() })
-                },
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -551,9 +522,7 @@ private fun QuickAction(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = onClick)
-            }
+            .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
         Surface(
@@ -622,7 +591,6 @@ private fun ZoomableImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(photoUri)
                 .crossfade(true)
-                .crossfade(300)
                 .size(1080)
                 .build(),
             contentDescription = null,
@@ -702,9 +670,7 @@ private fun InfoBottomSheet(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.5f))
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = { onDismiss() })
-            }
+            .clickable(onClick = onDismiss)
     ) {
         Card(
             modifier = Modifier
@@ -745,7 +711,6 @@ private fun InfoBottomSheet(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(photo.uri)
                         .crossfade(true)
-                        .crossfade(500)
                         .size(800)
                         .build(),
                     contentDescription = photo.name,
