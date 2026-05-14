@@ -5,9 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -65,7 +62,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -167,7 +163,6 @@ fun PhotoViewerScreen(
                 onMoreClick = { showMoreMenu = true },
                 showMoreMenu = showMoreMenu,
                 onDismissMenu = { showMoreMenu = false },
-                currentPhoto = currentPhoto,
                 onShareClick = { currentPhoto?.let { shareImage(context, it.uri) } },
                 onInfoClick = { showInfoSheet = true },
                 onSetWallpaperClick = { currentPhoto?.let { setAsWallpaper(context, it.uri) } },
@@ -182,13 +177,52 @@ fun PhotoViewerScreen(
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
         ) {
-            PhotoBottomBar(
-                onShareClick = { currentPhoto?.let { shareImage(context, it.uri) } },
-                onInfoClick = { showInfoSheet = true },
-                onWallpaperClick = { currentPhoto?.let { setAsWallpaper(context, it.uri) } },
-                onDeleteClick = { showDeleteDialog = true },
-                onZoomInClick = { isZoomed = true }
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.7f)
+                            )
+                        )
+                    )
+                    .padding(bottom = 48.dp, start = 16.dp, end = 16.dp, top = 48.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    BottomAction(
+                        icon = Icons.Default.Share,
+                        label = "Share",
+                        onClick = { currentPhoto?.let { shareImage(context, it.uri) } }
+                    )
+                    BottomAction(
+                        icon = Icons.Default.Info,
+                        label = "Info",
+                        onClick = { showInfoSheet = true }
+                    )
+                    BottomAction(
+                        icon = Icons.Default.ZoomIn,
+                        label = "Zoom",
+                        onClick = { isZoomed = true }
+                    )
+                    BottomAction(
+                        icon = Icons.Default.Wallpaper,
+                        label = "Wallpaper",
+                        onClick = { currentPhoto?.let { setAsWallpaper(context, it.uri) } }
+                    )
+                    BottomAction(
+                        icon = Icons.Default.Delete,
+                        label = "Delete",
+                        onClick = { showDeleteDialog = true },
+                        isDestructive = true
+                    )
+                }
+            }
         }
 
         // Zoom Indicator
@@ -245,10 +279,91 @@ fun PhotoViewerScreen(
 
         // Info Sheet
         if (showInfoSheet && currentPhoto != null) {
-            PhotoInfoSheet(
-                photo = currentPhoto!!,
-                onDismiss = { showInfoSheet = false }
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(onClick = { showInfoSheet = false })
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        // Handle
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                                .align(Alignment.CenterHorizontally)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Text(
+                            text = "Photo Details",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        // Preview
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(photo.uri)
+                                .crossfade(true)
+                                .size(800)
+                                .build(),
+                            contentDescription = photo.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(16.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        // Info
+                        InfoRow(label = "Name", value = photo.name)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "Type", value = photo.mimeType)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "Size", value = formatFileSize(photo.size))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "Date", value = formatDate(photo.dateModified))
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Button(
+                            onClick = { showInfoSheet = false },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(
+                                text = "Close",
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -261,7 +376,6 @@ private fun PhotoTopBar(
     onMoreClick: () -> Unit,
     showMoreMenu: Boolean,
     onDismissMenu: () -> Unit,
-    currentPhoto: MediaItem?,
     onShareClick: () -> Unit,
     onInfoClick: () -> Unit,
     onSetWallpaperClick: () -> Unit,
@@ -436,62 +550,6 @@ private fun TopBarIconButton(
 }
 
 @Composable
-private fun PhotoBottomBar(
-    onShareClick: () -> Unit,
-    onInfoClick: () -> Unit,
-    onWallpaperClick: () -> Unit,
-    onDeleteClick: () -> Unit,
-    onZoomInClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .align(Alignment.BottomCenter)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.7f)
-                    )
-                )
-            )
-            .padding(bottom = 48.dp, start = 16.dp, end = 16.dp, top = 48.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            BottomAction(
-                icon = Icons.Default.Share,
-                label = "Share",
-                onClick = onShareClick
-            )
-            BottomAction(
-                icon = Icons.Default.Info,
-                label = "Info",
-                onClick = onInfoClick
-            )
-            BottomAction(
-                icon = Icons.Default.ZoomIn,
-                label = "Zoom",
-                onClick = onZoomInClick
-            )
-            BottomAction(
-                icon = Icons.Default.Wallpaper,
-                label = "Wallpaper",
-                onClick = onWallpaperClick
-            )
-            BottomAction(
-                icon = Icons.Default.Delete,
-                label = "Delete",
-                onClick = onDeleteClick,
-                isDestructive = true
-            )
-        }
-    }
-}
-
-@Composable
 private fun BottomAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
@@ -632,98 +690,6 @@ private fun DeleteDialog(
             }
         }
     )
-}
-
-@Composable
-private fun PhotoInfoSheet(
-    photo: MediaItem,
-    onDismiss: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
-            .clickable(onClick = onDismiss)
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(16.dp),
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp)
-            ) {
-                // Handle
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .width(40.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    text = "Photo Details",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                // Preview
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(photo.uri)
-                        .crossfade(true)
-                        .size(800)
-                        .build(),
-                    contentDescription = photo.name,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(16.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                // Info
-                InfoRow(label = "Name", value = photo.name)
-                Spacer(modifier = Modifier.height(12.dp))
-                InfoRow(label = "Type", value = photo.mimeType)
-                Spacer(modifier = Modifier.height(12.dp))
-                InfoRow(label = "Size", value = formatFileSize(photo.size))
-                Spacer(modifier = Modifier.height(12.dp))
-                InfoRow(label = "Date", value = formatDate(photo.dateModified))
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text(
-                        text = "Close",
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-            }
-        }
-    }
 }
 
 @Composable
