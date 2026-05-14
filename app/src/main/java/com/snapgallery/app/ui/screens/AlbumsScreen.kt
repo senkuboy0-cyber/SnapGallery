@@ -1,8 +1,16 @@
 package com.snapgallery.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,8 +35,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,12 +48,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,8 +78,8 @@ import coil.request.ImageRequest
 import com.snapgallery.app.data.model.Album
 import com.snapgallery.app.ui.theme.GradientBlue
 import com.snapgallery.app.ui.theme.GradientCyan
-import com.snapgallery.app.ui.theme.GradientPurple
 import com.snapgallery.app.ui.theme.GradientPink
+import com.snapgallery.app.ui.theme.GradientPurple
 import com.snapgallery.app.ui.viewmodel.GalleryViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,9 +91,25 @@ fun AlbumsScreen(
 ) {
     val albums by viewModel.albums.collectAsState()
     val gridState = rememberLazyGridState()
+    
+    var showSearch by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var sortAscending by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadAlbums()
+    }
+
+    val filteredAlbums = if (searchQuery.isNotEmpty()) {
+        albums.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    } else albums
+
+    val sortedAlbums = remember(filteredAlbums, sortAscending) {
+        if (sortAscending) {
+            filteredAlbums.sortedBy { it.name.lowercase() }
+        } else {
+            filteredAlbums
+        }
     }
 
     Surface(
@@ -84,48 +117,20 @@ fun AlbumsScreen(
         color = MaterialTheme.colorScheme.background
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Custom Top App Bar
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Collections,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Albums",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+            // Glass Top Bar
+            AlbumsTopBar(
+                showSearch = showSearch,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                onSearchToggle = { showSearch = !showSearch },
+                onBackClick = onBackClick,
+                albumCount = albums.size,
+                sortAscending = sortAscending,
+                onSortToggle = { sortAscending = !sortAscending }
             )
 
-            // Albums Grid
-            if (albums.isEmpty()) {
+            // Albums Grid with Staggered Animation
+            if (sortedAlbums.isEmpty()) {
                 EmptyAlbumsState()
             } else {
                 LazyVerticalGrid(
@@ -137,10 +142,10 @@ fun AlbumsScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(
-                        items = albums,
+                        items = sortedAlbums,
                         key = { it.id }
                     ) { album ->
-                        AlbumCard(
+                        AnimatedAlbumCard(
                             album = album,
                             onClick = { onAlbumClick(album.id, album.name) }
                         )
@@ -151,25 +156,240 @@ fun AlbumsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AlbumCard(
+private fun AlbumsTopBar(
+    showSearch: Boolean,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSearchToggle: () -> Unit,
+    onBackClick: () -> Unit,
+    albumCount: Int,
+    sortAscending: Boolean,
+    onSortToggle: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        tonalElevation = 4.dp
+    ) {
+        Column {
+            TopAppBar(
+                title = {
+                    if (showSearch) {
+                        SearchField(
+                            query = searchQuery,
+                            onQueryChange = onSearchQueryChange
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            // Back Button with Glass Effect
+                            GlassBackButton(onClick = onBackClick)
+                            
+                            Spacer(modifier = Modifier.width(16.dp))
+                            
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Collections,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "Albums",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                actions = {
+                    if (!showSearch && albumCount > 0) {
+                        // Sort Button
+                        IconButton(onClick = onSortToggle) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (sortAscending) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SortByAlpha,
+                                    contentDescription = "Sort",
+                                    tint = if (sortAscending) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        
+                        // Search Button
+                        IconButton(onClick = onSearchToggle) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Search",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                    if (showSearch) {
+                        IconButton(onClick = {
+                            onSearchToggle()
+                            onSearchQueryChange("")
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Close Search",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
+            )
+
+            // Album count indicator
+            if (!showSearch && albumCount > 0) {
+                Row(
+                    modifier = Modifier.padding(start = 72.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$albumCount albums",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    if (sortAscending) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                text = "A-Z",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GlassBackButton(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+        shadowElevation = 4.dp
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchField(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            TextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = {
+                    Text(
+                        text = "Search albums...",
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                modifier = Modifier.weight(1f),
+                singleLine = true
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnimatedAlbumCard(
     album: Album,
     onClick: () -> Unit
 ) {
+    val scale by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "albumScale"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .scale(scale)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp
+            defaultElevation = 6.dp
         ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column {
-            // Cover Image with Gradient Overlay
+            // Cover Image with Gradient Overlay and Favorite indicator
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -181,13 +401,14 @@ private fun AlbumCard(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(album.coverUri)
                             .crossfade(true)
+                            .crossfade(500)
                             .size(800)
                             .build(),
                         contentDescription = album.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                    // Gradient overlay for better text visibility
+                    // Gradient overlay
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -195,7 +416,7 @@ private fun AlbumCard(
                                 Brush.verticalGradient(
                                     colors = listOf(
                                         Color.Transparent,
-                                        Color.Black.copy(alpha = 0.3f)
+                                        Color.Black.copy(alpha = 0.4f)
                                     )
                                 )
                             )
@@ -206,7 +427,10 @@ private fun AlbumCard(
                             .fillMaxSize()
                             .background(
                                 brush = Brush.linearGradient(
-                                    colors = listOf(GradientPurple.copy(alpha = 0.3f), GradientPink.copy(alpha = 0.3f))
+                                    colors = listOf(
+                                        GradientPurple.copy(alpha = 0.3f),
+                                        GradientPink.copy(alpha = 0.3f)
+                                    )
                                 )
                             ),
                         contentAlignment = Alignment.Center
@@ -220,13 +444,13 @@ private fun AlbumCard(
                     }
                 }
 
-                // Photo count badge
+                // Photo count badge with glass effect
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(10.dp),
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.Black.copy(alpha = 0.6f)
+                    color = Color.Black.copy(alpha = 0.5f)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -247,9 +471,39 @@ private fun AlbumCard(
                         )
                     }
                 }
+                
+                // Featured indicator for albums with many photos
+                if (album.count > 50) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(10.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Popular",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
             }
 
-            // Album Info
+            // Album Info with enhanced styling
             Column(
                 modifier = Modifier.padding(14.dp)
             ) {
@@ -258,14 +512,25 @@ private fun AlbumCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${album.count} photos",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    ) {
+                        Text(
+                            text = "${album.count} photos",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
         }
     }

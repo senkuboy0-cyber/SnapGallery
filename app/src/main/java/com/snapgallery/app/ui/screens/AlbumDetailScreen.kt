@@ -4,9 +4,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,8 +37,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -66,6 +76,8 @@ import coil.request.ImageRequest
 import com.snapgallery.app.data.model.MediaItem
 import com.snapgallery.app.ui.theme.GradientBlue
 import com.snapgallery.app.ui.theme.GradientCyan
+import com.snapgallery.app.ui.theme.GradientPink
+import com.snapgallery.app.ui.theme.GradientPurple
 import com.snapgallery.app.ui.theme.PrimaryLight
 import com.snapgallery.app.ui.viewmodel.GalleryViewModel
 
@@ -81,6 +93,7 @@ fun AlbumDetailScreen(
     val albumPhotos by viewModel.albumPhotos.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedPhotos by remember { mutableStateOf(setOf<Long>()) }
+    var viewMode by remember { mutableStateOf(0) } // 0 = grid, 1 = list
 
     LaunchedEffect(albumId) {
         viewModel.loadPhotosByAlbum(albumId)
@@ -91,123 +104,77 @@ fun AlbumDetailScreen(
         color = MaterialTheme.colorScheme.background
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Gradient Background Header
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                PrimaryLight.copy(alpha = 0.15f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
+            // Animated Header Background
+            AnimatedAlbumHeader(albumPhotos = albumPhotos)
 
-            // Custom Top App Bar
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = albumName,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        if (albumPhotos.isNotEmpty()) {
-                            Text(
-                                text = "${albumPhotos.size} photos",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    if (albumPhotos.isNotEmpty()) {
-                        IconButton(onClick = { isSelectionMode = !isSelectionMode }) {
-                            Icon(
-                                imageVector = if (isSelectionMode) Icons.Default.Check else Icons.Default.Photo,
-                                contentDescription = "Select",
-                                tint = if (isSelectionMode) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+            // Glass Top App Bar
+            AlbumDetailTopBar(
+                albumName = albumName,
+                photoCount = albumPhotos.size,
+                onBackClick = onBackClick,
+                isSelectionMode = isSelectionMode,
+                viewMode = viewMode,
+                onViewModeToggle = { viewMode = if (viewMode == 0) 1 else 0 },
+                onSelectionModeToggle = { isSelectionMode = !isSelectionMode }
             )
 
             // Selection Counter
             AnimatedVisibility(
                 visible = isSelectionMode && selectedPhotos.isNotEmpty(),
-                enter = slideInVertically() + fadeIn(),
-                exit = slideOutVertically() + fadeOut()
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
             ) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "${selectedPhotos.size} selected",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                AlbumSelectionCounter(
+                    selectedCount = selectedPhotos.size,
+                    onClear = {
+                        isSelectionMode = false
+                        selectedPhotos = emptySet()
                     }
-                }
+                )
             }
 
             // Content
             Box(modifier = Modifier.weight(1f)) {
                 if (albumPhotos.isEmpty()) {
-                    EmptyAlbumState()
+                    EmptyAlbumDetailState()
                 } else {
-                    PhotoGridWithSelection(
-                        photos = albumPhotos,
-                        onPhotoClick = { index ->
-                            if (isSelectionMode) {
-                                selectedPhotos = selectedPhotos + albumPhotos[index].id
-                            } else {
-                                onPhotoClick(index)
+                    if (viewMode == 0) {
+                        AlbumGridView(
+                            photos = albumPhotos,
+                            onPhotoClick = { index ->
+                                if (isSelectionMode) {
+                                    val photoId = albumPhotos[index].id
+                                    selectedPhotos = if (selectedPhotos.contains(photoId)) {
+                                        selectedPhotos - photoId
+                                    } else {
+                                        selectedPhotos + photoId
+                                    }
+                                } else {
+                                    onPhotoClick(index)
+                                }
+                            },
+                            isSelectionMode = isSelectionMode,
+                            selectedPhotos = selectedPhotos
+                        )
+                    } else {
+                        AlbumListView(
+                            photos = albumPhotos,
+                            onPhotoClick = { index ->
+                                if (!isSelectionMode) {
+                                    onPhotoClick(index)
+                                }
+                            },
+                            isSelectionMode = isSelectionMode,
+                            selectedPhotos = selectedPhotos,
+                            onPhotoSelect = { photoId ->
+                                selectedPhotos = if (selectedPhotos.contains(photoId)) {
+                                    selectedPhotos - photoId
+                                } else {
+                                    selectedPhotos + photoId
+                                }
                             }
-                        },
-                        isSelectionMode = isSelectionMode,
-                        selectedPhotos = selectedPhotos
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -215,7 +182,214 @@ fun AlbumDetailScreen(
 }
 
 @Composable
-private fun PhotoGridWithSelection(
+private fun AnimatedAlbumHeader(albumPhotos: List<MediaItem>) {
+    val firstPhoto = albumPhotos.firstOrNull()
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+    ) {
+        if (firstPhoto != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(firstPhoto.uri)
+                    .crossfade(true)
+                    .size(600)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
+        
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            PrimaryLight.copy(alpha = 0.2f),
+                            Color.Transparent,
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
+                        )
+                    )
+                )
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AlbumDetailTopBar(
+    albumName: String,
+    photoCount: Int,
+    onBackClick: () -> Unit,
+    isSelectionMode: Boolean,
+    viewMode: Int,
+    onViewModeToggle: () -> Unit,
+    onSelectionModeToggle: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent
+    ) {
+        TopAppBar(
+            title = {
+                Column {
+                    Text(
+                        text = albumName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (photoCount > 0) {
+                        Text(
+                            text = "$photoCount photos",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            },
+            navigationIcon = {
+                GlassBackButton(onClick = onBackClick)
+            },
+            actions = {
+                if (photoCount > 0) {
+                    // View Mode Toggle
+                    IconButton(onClick = onViewModeToggle) {
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = if (viewMode == 0) 
+                                MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (viewMode == 0) Icons.Default.List else Icons.Default.GridView,
+                                    contentDescription = "Toggle View",
+                                    tint = if (viewMode == 0) 
+                                        MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Selection Mode Toggle
+                    IconButton(onClick = onSelectionModeToggle) {
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = if (isSelectionMode) 
+                                MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isSelectionMode) Icons.Default.Check else Icons.Default.Photo,
+                                    contentDescription = "Select",
+                                    tint = if (isSelectionMode) 
+                                        Color.White
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent
+            )
+        )
+    }
+}
+
+@Composable
+private fun GlassBackButton(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        shadowElevation = 4.dp
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun AlbumSelectionCounter(
+    selectedCount: Int,
+    onClear: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "$selectedCount",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = if (selectedCount == 1) "photo selected" else "photos selected",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Surface(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(onClick = onClear),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Text(
+                    text = "Clear",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumGridView(
     photos: List<MediaItem>,
     onPhotoClick: (Int) -> Unit,
     isSelectionMode: Boolean,
@@ -230,10 +404,10 @@ private fun PhotoGridWithSelection(
             start = 12.dp,
             end = 12.dp,
             top = 8.dp,
-            bottom = 16.dp
+            bottom = 24.dp
         ),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         items(
@@ -245,7 +419,7 @@ private fun PhotoGridWithSelection(
             Box(
                 modifier = Modifier
                     .aspectRatio(1f)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { 
                         val index = photos.indexOf(photo)
                         onPhotoClick(index)
@@ -255,26 +429,27 @@ private fun PhotoGridWithSelection(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(photo.uri)
                         .crossfade(true)
+                        .crossfade(500)
                         .size(600)
                         .build(),
                     contentDescription = photo.name,
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(16.dp)),
+                        .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop
                 )
                 
                 AnimatedVisibility(
                     visible = isSelectionMode,
-                    enter = fadeIn(),
-                    exit = fadeOut()
+                    enter = fadeIn() + scaleIn(),
+                    exit = fadeOut() + scaleOut()
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                                else Color.Transparent
+                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                else Color.Black.copy(alpha = 0.2f)
                             )
                     ) {
                         if (isSelected) {
@@ -295,6 +470,22 @@ private fun PhotoGridWithSelection(
                                 )
                             }
                         }
+                        
+                        if (!isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.5f))
+                                    .clickable { 
+                                        val index = photos.indexOf(photo)
+                                        onPhotoClick(index)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {}
+                        }
                     }
                 }
             }
@@ -303,7 +494,130 @@ private fun PhotoGridWithSelection(
 }
 
 @Composable
-private fun EmptyAlbumState() {
+private fun AlbumListView(
+    photos: List<MediaItem>,
+    onPhotoClick: (Int) -> Unit,
+    isSelectionMode: Boolean,
+    selectedPhotos: Set<Long>,
+    onPhotoSelect: (Long) -> Unit
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(1),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 8.dp,
+            bottom = 24.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(
+            items = photos,
+            key = { it.id }
+        ) { photo ->
+            val isSelected = selectedPhotos.contains(photo.id)
+            
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { 
+                        val index = photos.indexOf(photo)
+                        onPhotoClick(index)
+                    },
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Thumbnail
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(photo.uri)
+                                .crossfade(true)
+                                .size(400)
+                                .build(),
+                            contentDescription = photo.name,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        
+                        if (isSelectionMode) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                        else Color.Transparent
+                                    )
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    // Info
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = photo.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = formatFileSize(photo.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    
+                    // Selection Indicator
+                    if (isSelectionMode) {
+                        Surface(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .clickable { onPhotoSelect(photo.id) },
+                            color = if (isSelected) 
+                                MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyAlbumDetailState() {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -344,5 +658,13 @@ private fun EmptyAlbumState() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+private fun formatFileSize(size: Long): String {
+    return when {
+        size < 1024 -> "$size B"
+        size < 1024 * 1024 -> "%.1f KB".format(size / 1024.0)
+        else -> "%.1f MB".format(size / (1024.0 * 1024.0))
     }
 }
