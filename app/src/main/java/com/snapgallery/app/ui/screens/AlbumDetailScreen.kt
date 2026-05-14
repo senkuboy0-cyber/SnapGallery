@@ -4,14 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -69,6 +66,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -429,7 +427,6 @@ private fun AlbumGridView(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(photo.uri)
                         .crossfade(true)
-                        .crossfade(500)
                         .size(600)
                         .build(),
                     contentDescription = photo.name,
@@ -478,11 +475,7 @@ private fun AlbumGridView(
                                     .padding(8.dp)
                                     .size(28.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.5f))
-                                    .clickable { 
-                                        val index = photos.indexOf(photo)
-                                        onPhotoClick(index)
-                                    },
+                                    .background(Color.White.copy(alpha = 0.5f)),
                                 contentAlignment = Alignment.Center
                             ) {}
                         }
