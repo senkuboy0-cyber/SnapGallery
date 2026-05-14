@@ -279,6 +279,7 @@ fun PhotoViewerScreen(
 
         // Info Sheet
         if (showInfoSheet && currentPhoto != null) {
+            val photoData = currentPhoto!!
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -322,11 +323,11 @@ fun PhotoViewerScreen(
                         // Preview
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
-                                .data(photo.uri)
+                                .data(photoData.uri)
                                 .crossfade(true)
                                 .size(800)
                                 .build(),
-                            contentDescription = photo.name,
+                            contentDescription = photoData.name,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(200.dp)
@@ -337,13 +338,13 @@ fun PhotoViewerScreen(
                         Spacer(modifier = Modifier.height(24.dp))
                         
                         // Info
-                        InfoRow(label = "Name", value = photo.name)
+                        InfoRow(label = "Name", value = photoData.name)
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "Type", value = photo.mimeType)
+                        InfoRow(label = "Type", value = photoData.mimeType)
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "Size", value = formatFileSize(photo.size))
+                        InfoRow(label = "Size", value = formatFileSize(photoData.size))
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "Date", value = formatDate(photo.dateModified))
+                        InfoRow(label = "Date", value = formatDate(photoData.dateModified))
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
