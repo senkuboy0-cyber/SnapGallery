@@ -4,10 +4,10 @@ import android.Manifest
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.repeatMode
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,7 +43,6 @@ import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,7 +71,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -84,7 +83,6 @@ import com.snapgallery.app.ui.theme.GradientBlue
 import com.snapgallery.app.ui.theme.GradientCyan
 import com.snapgallery.app.ui.theme.GradientPink
 import com.snapgallery.app.ui.theme.GradientPurple
-import com.snapgallery.app.ui.theme.PrimaryLight
 import com.snapgallery.app.ui.viewmodel.GalleryViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
@@ -102,7 +100,6 @@ fun MainScreen(
 
     val permissionState = rememberPermissionState(permission)
     val photos by viewModel.photos.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
     
     var selectedTab by remember { mutableStateOf(0) }
     var isSelectionMode by remember { mutableStateOf(false) }
@@ -136,11 +133,7 @@ fun MainScreen(
                     onSearchQueryChange = { searchQuery = it },
                     onSearchToggle = { showSearch = !showSearch },
                     isSelectionMode = isSelectionMode,
-                    selectedCount = selectedPhotos.size,
-                    onClearSelection = {
-                        isSelectionMode = false
-                        selectedPhotos = emptySet()
-                    },
+                    onSelectionModeToggle = { isSelectionMode = !isSelectionMode },
                     photos = photos
                 )
 
@@ -216,8 +209,6 @@ fun MainScreen(
                         selectedTab = tab
                         if (tab == 1) onNavigateToAlbums()
                     },
-                    onSelectModeToggle = { isSelectionMode = !isSelectionMode },
-                    isSelectionMode = isSelectionMode,
                     hasPhotos = photos.isNotEmpty()
                 )
             }
@@ -227,13 +218,12 @@ fun MainScreen(
 
 @Composable
 private fun AnimatedGradientBackground() {
-    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "gradient")
+    val infiniteTransition = rememberInfiniteTransition(label = "gradient")
     val offset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1000f,
         animationSpec = infiniteRepeatable(
-            animation = tween(20000),
-            repeatMode = repeatMode
+            animation = tween(20000)
         ),
         label = "offset"
     )
@@ -262,8 +252,7 @@ private fun GlassTopBar(
     onSearchQueryChange: (String) -> Unit,
     onSearchToggle: () -> Unit,
     isSelectionMode: Boolean,
-    selectedCount: Int,
-    onClearSelection: () -> Unit,
+    onSelectionModeToggle: () -> Unit,
     photos: List<MediaItem>
 ) {
     Surface(
@@ -301,7 +290,7 @@ private fun GlassTopBar(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        IconButton(onClick = { isSelectionMode = !isSelectionMode }) {
+                        IconButton(onClick = onSelectionModeToggle) {
                             Icon(
                                 imageVector = Icons.Default.SelectAll,
                                 contentDescription = "Select",
@@ -424,7 +413,6 @@ private fun AnimatedTabIndicator(
             text = "All Photos",
             icon = Icons.Default.Image,
             isSelected = selectedTab == 0,
-            gradient = listOf(GradientPurple, GradientPink),
             onClick = { onTabSelect(0) },
             modifier = Modifier.weight(1f)
         )
@@ -432,7 +420,6 @@ private fun AnimatedTabIndicator(
             text = "Albums",
             icon = Icons.Default.Collections,
             isSelected = selectedTab == 1,
-            gradient = listOf(GradientBlue, GradientCyan),
             onClick = { onTabSelect(1) },
             modifier = Modifier.weight(1f)
         )
@@ -444,7 +431,6 @@ private fun TabButton(
     text: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
-    gradient: List<Color>,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -588,13 +574,12 @@ private fun WelcomePermissionScreen(onRequestPermission: () -> Unit) {
 
 @Composable
 private fun AnimatedWelcomeIcon() {
-    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "welcome")
+    val infiniteTransition = rememberInfiniteTransition(label = "welcome")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
         targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500),
-            repeatMode = repeatMode
+            animation = tween(1500)
         ),
         label = "scale"
     )
@@ -626,31 +611,25 @@ private fun GradientButton(
     text: String,
     onClick: () -> Unit
 ) {
-    Surface(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        shadowElevation = 8.dp
+            .clickable(onClick = onClick)
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(GradientPurple, GradientPink)
+                )
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(GradientPurple, GradientPink)
-                    )
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
     }
 }
 
@@ -768,9 +747,8 @@ private fun EnhancedPhotoGrid(
         ) { index, photo ->
             val isSelected = selectedPhotos.contains(photo.id)
             
-            AnimatedPhotoItem(
+            PhotoItem(
                 photo = photo,
-                index = index,
                 isSelected = isSelected,
                 isSelectionMode = isSelectionMode,
                 onClick = { onPhotoClick(index) }
@@ -780,9 +758,8 @@ private fun EnhancedPhotoGrid(
 }
 
 @Composable
-private fun AnimatedPhotoItem(
+private fun PhotoItem(
     photo: MediaItem,
-    index: Int,
     isSelected: Boolean,
     isSelectionMode: Boolean,
     onClick: () -> Unit
@@ -800,7 +777,7 @@ private fun AnimatedPhotoItem(
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
     ) {
-        // Image with smooth loading and crossfade
+        // Image with smooth loading
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(photo.uri)
@@ -814,7 +791,7 @@ private fun AnimatedPhotoItem(
             contentScale = ContentScale.Crop
         )
         
-        // Selection Overlay with Animation
+        // Selection Overlay
         AnimatedVisibility(
             visible = isSelectionMode,
             enter = fadeIn() + scaleIn(),
@@ -828,15 +805,15 @@ private fun AnimatedPhotoItem(
                         else Color.Black.copy(alpha = 0.2f)
                     )
             ) {
-                // Selection Checkmark with animation
+                // Selection Checkmark
                 if (isSelected) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
                             .padding(8.dp)
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
+                            .background(MaterialTheme.colorScheme.primary)
+                            .align(Alignment.TopEnd),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -848,16 +825,16 @@ private fun AnimatedPhotoItem(
                     }
                 }
                 
-                // Selection Circle (when not selected)
+                // Selection Circle
                 if (!isSelected) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
                             .padding(8.dp)
                             .size(28.dp)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.5f))
-                            .border(2.dp, Color.White, CircleShape),
+                            .border(2.dp, Color.White, CircleShape)
+                            .align(Alignment.TopEnd),
                         contentAlignment = Alignment.Center
                     ) {}
                 }
@@ -870,8 +847,6 @@ private fun AnimatedPhotoItem(
 private fun GlassBottomNav(
     selectedTab: Int,
     onTabSelect: (Int) -> Unit,
-    onSelectModeToggle: () -> Unit,
-    isSelectionMode: Boolean,
     hasPhotos: Boolean
 ) {
     Box(
@@ -897,14 +872,12 @@ private fun GlassBottomNav(
                     icon = Icons.Default.Image,
                     label = "Photos",
                     isSelected = selectedTab == 0,
-                    gradient = listOf(GradientPurple, GradientPink),
                     onClick = { onTabSelect(0) }
                 )
                 GlassNavItem(
                     icon = Icons.Default.Collections,
                     label = "Albums",
                     isSelected = selectedTab == 1,
-                    gradient = listOf(GradientBlue, GradientCyan),
                     onClick = { onTabSelect(1) }
                 )
             }
@@ -917,7 +890,6 @@ private fun GlassNavItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     isSelected: Boolean,
-    gradient: List<Color>,
     onClick: () -> Unit
 ) {
     val scale by animateFloatAsState(
@@ -941,7 +913,11 @@ private fun GlassNavItem(
                     if (isSelected) {
                         Modifier
                             .background(
-                                brush = Brush.linearGradient(gradient),
+                                brush = Brush.linearGradient(
+                                    colors = if (icon == Icons.Default.Image) 
+                                        listOf(GradientPurple, GradientPink)
+                                        else listOf(GradientBlue, GradientCyan)
+                                ),
                                 shape = CircleShape
                             )
                             .shadow(8.dp, CircleShape)

@@ -108,12 +108,6 @@ fun PhotoViewerScreen(
     var showControls by remember { mutableStateOf(true) }
     var isZoomed by remember { mutableStateOf(false) }
     
-    val controlsAlpha by animateFloatAsState(
-        targetValue = if (showControls) 1f else 0f,
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "controlsAlpha"
-    )
-
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }
             .collect { page ->
@@ -147,7 +141,7 @@ fun PhotoViewerScreen(
                 )
             }
     ) {
-        // Photo Pager with Smooth Transitions
+        // Photo Pager
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
@@ -155,19 +149,18 @@ fun PhotoViewerScreen(
             if (page < photos.size) {
                 ZoomableImage(
                     photoUri = photos[page].uri,
-                    isZoomed = isZoomed,
-                    onZoomChange = { isZoomed = it }
+                    onZoomChange = { zoomed -> isZoomed = zoomed }
                 )
             }
         }
 
-        // Top Gradient Bar with Glass Effect
+        // Top Controls
         AnimatedVisibility(
             visible = showControls,
             enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
         ) {
-            GlassTopControls(
+            PhotoTopBar(
                 currentPage = pagerState.currentPage,
                 totalPages = photos.size,
                 onBackClick = onBackClick,
@@ -183,13 +176,13 @@ fun PhotoViewerScreen(
             )
         }
 
-        // Bottom Quick Actions with Glass Effect
+        // Bottom Controls
         AnimatedVisibility(
             visible = showControls && !isZoomed,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
         ) {
-            GlassBottomControls(
+            PhotoBottomBar(
                 onShareClick = { currentPhoto?.let { shareImage(context, it.uri) } },
                 onInfoClick = { showInfoSheet = true },
                 onWallpaperClick = { currentPhoto?.let { setAsWallpaper(context, it.uri) } },
@@ -235,9 +228,9 @@ fun PhotoViewerScreen(
             }
         }
 
-        // Delete Confirmation Dialog
+        // Delete Dialog
         if (showDeleteDialog) {
-            GlassDeleteDialog(
+            DeleteDialog(
                 onConfirm = {
                     showDeleteDialog = false
                     currentPhoto?.let { photo ->
@@ -250,9 +243,9 @@ fun PhotoViewerScreen(
             )
         }
 
-        // Info Bottom Sheet
+        // Info Sheet
         if (showInfoSheet && currentPhoto != null) {
-            InfoBottomSheet(
+            PhotoInfoSheet(
                 photo = currentPhoto!!,
                 onDismiss = { showInfoSheet = false }
             )
@@ -261,7 +254,7 @@ fun PhotoViewerScreen(
 }
 
 @Composable
-private fun GlassTopControls(
+private fun PhotoTopBar(
     currentPage: Int,
     totalPages: Int,
     onBackClick: () -> Unit,
@@ -293,29 +286,52 @@ private fun GlassTopControls(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Back Button with Glass Effect
-            GlassIconButton(
+            // Back Button
+            TopBarIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 onClick = onBackClick
             )
 
-            // Page indicator with Glass Effect
-            GlassPageIndicator(
-                current = currentPage + 1,
-                total = totalPages
-            )
+            // Page indicator
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White.copy(alpha = 0.15f),
+                shadowElevation = 4.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(GradientPurple, GradientPink)
+                                )
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "$currentPage / $totalPages",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    )
+                }
+            }
 
-            // More Menu Button
+            // More Menu
             Box {
-                GlassIconButton(
+                TopBarIconButton(
                     icon = Icons.Default.MoreVert,
                     onClick = onMoreClick
                 )
                 
                 DropdownMenu(
                     expanded = showMoreMenu,
-                    onDismissRequest = onDismissMenu,
-                    modifier = Modifier.clip(RoundedCornerShape(16.dp))
+                    onDismissRequest = onDismissMenu
                 ) {
                     DropdownMenuItem(
                         text = { 
@@ -393,7 +409,7 @@ private fun GlassTopControls(
 }
 
 @Composable
-private fun GlassIconButton(
+private fun TopBarIconButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
@@ -420,43 +436,7 @@ private fun GlassIconButton(
 }
 
 @Composable
-private fun GlassPageIndicator(
-    current: Int,
-    total: Int
-) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White.copy(alpha = 0.15f),
-        shadowElevation = 4.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Gradient dot
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(GradientPurple, GradientPink)
-                        )
-                    )
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "$current / $total",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium,
-                color = Color.White
-            )
-        }
-    }
-}
-
-@Composable
-private fun GlassBottomControls(
+private fun PhotoBottomBar(
     onShareClick: () -> Unit,
     onInfoClick: () -> Unit,
     onWallpaperClick: () -> Unit,
@@ -481,27 +461,27 @@ private fun GlassBottomControls(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            QuickAction(
+            BottomAction(
                 icon = Icons.Default.Share,
                 label = "Share",
                 onClick = onShareClick
             )
-            QuickAction(
+            BottomAction(
                 icon = Icons.Default.Info,
                 label = "Info",
                 onClick = onInfoClick
             )
-            QuickAction(
+            BottomAction(
                 icon = Icons.Default.ZoomIn,
                 label = "Zoom",
                 onClick = onZoomInClick
             )
-            QuickAction(
+            BottomAction(
                 icon = Icons.Default.Wallpaper,
                 label = "Wallpaper",
                 onClick = onWallpaperClick
             )
-            QuickAction(
+            BottomAction(
                 icon = Icons.Default.Delete,
                 label = "Delete",
                 onClick = onDeleteClick,
@@ -512,7 +492,7 @@ private fun GlassBottomControls(
 }
 
 @Composable
-private fun QuickAction(
+private fun BottomAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
@@ -555,18 +535,11 @@ private fun QuickAction(
 @Composable
 private fun ZoomableImage(
     photoUri: Uri,
-    isZoomed: Boolean,
     onZoomChange: (Boolean) -> Unit
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
-    
-    val animatedScale by animateFloatAsState(
-        targetValue = scale,
-        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-        label = "scale"
-    )
     
     Box(
         modifier = Modifier
@@ -597,8 +570,8 @@ private fun ZoomableImage(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer(
-                    scaleX = animatedScale,
-                    scaleY = animatedScale,
+                    scaleX = scale,
+                    scaleY = scale,
                     translationX = offsetX,
                     translationY = offsetY
                 ),
@@ -608,7 +581,7 @@ private fun ZoomableImage(
 }
 
 @Composable
-private fun GlassDeleteDialog(
+private fun DeleteDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -662,7 +635,7 @@ private fun GlassDeleteDialog(
 }
 
 @Composable
-private fun InfoBottomSheet(
+private fun PhotoInfoSheet(
     photo: MediaItem,
     onDismiss: () -> Unit
 ) {
@@ -706,7 +679,7 @@ private fun InfoBottomSheet(
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                // Preview Image with rounded corners
+                // Preview
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(photo.uri)
@@ -723,14 +696,14 @@ private fun InfoBottomSheet(
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                // Info Items with Glass effect cards
-                InfoCard(label = "Name", value = photo.name)
+                // Info
+                InfoRow(label = "Name", value = photo.name)
                 Spacer(modifier = Modifier.height(12.dp))
-                InfoCard(label = "Type", value = photo.mimeType)
+                InfoRow(label = "Type", value = photo.mimeType)
                 Spacer(modifier = Modifier.height(12.dp))
-                InfoCard(label = "Size", value = formatFileSize(photo.size))
+                InfoRow(label = "Size", value = formatFileSize(photo.size))
                 Spacer(modifier = Modifier.height(12.dp))
-                InfoCard(label = "Date", value = formatDate(photo.dateModified))
+                InfoRow(label = "Date", value = formatDate(photo.dateModified))
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
@@ -754,7 +727,7 @@ private fun InfoBottomSheet(
 }
 
 @Composable
-private fun InfoCard(label: String, value: String) {
+private fun InfoRow(label: String, value: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
