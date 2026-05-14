@@ -7,6 +7,8 @@ val GradientPurple = Color(0xFF8B5CF6)
 val GradientPink = Color(0xFFEC4899)
 val GradientBlue = Color(0xFF3B82F6)
 val GradientCyan = Color(0xFF06B6D4)
+val GradientOrange = Color(0xFFF97316)
+val GradientGreen = Color(0xFF10B981)
 
 // Light Theme Colors
 val PrimaryLight = Color(0xFF6C3CE9)
@@ -33,6 +35,8 @@ val AccentGreen = Color(0xFF10B981)
 val AccentOrange = Color(0xFFF59E0B)
 val AccentRed = Color(0xFFEF4444)
 val AccentYellow = Color(0xFFFBBF24)
+val AccentViolet = Color(0xFF8B5CF6)
+val AccentIndigo = Color(0xFF6366F1)
 
 // Glass Effect Colors
 val GlassLight = Color(0x1AFFFFFF)
@@ -43,10 +47,22 @@ val GlassBorderDark = Color(0x1AFFFFFF)
 // Gradient Pairs
 val PrimaryGradient = listOf(GradientPurple, GradientPink)
 val SecondaryGradient = listOf(GradientBlue, GradientCyan)
-val SunsetGradient = listOf(GradientPink, GradientOrange)
+val SunsetGradient = listOf(GradientOrange, GradientPink)
 val OceanGradient = listOf(GradientBlue, GradientCyan)
+val AuroraGradient = listOf(GradientPurple, GradientCyan)
+val FireGradient = listOf(GradientOrange, GradientRed)
 
 // Shimmer Colors
 val ShimmerLight = Color(0xFFE2E8F0)
 val ShimmerDark = Color(0xFF334155)
 val ShimmerHighlight = Color(0xFFF8FAFC)
+
+// Shadow Colors
+val ShadowLight = Color(0x1A000000)
+val ShadowMedium = Color(0x33000000)
+val ShadowDark = Color(0x66000000)
+
+// Overlay Colors
+val OverlayLight = Color(0x80FFFFFF)
+val OverlayDark = Color(0x80000000)
+val ScrimDark = Color(0x99000000)

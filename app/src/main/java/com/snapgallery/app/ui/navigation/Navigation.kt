@@ -1,5 +1,11 @@
 package com.snapgallery.app.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -31,7 +37,35 @@ fun SnapGalleryNavHost() {
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Main.route
+        startDestination = Screen.Main.route,
+        enterTransition = {
+            fadeIn(animationSpec = tween(300)) + 
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            )
+        },
+        exitTransition = {
+            fadeOut(animationSpec = tween(300)) + 
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            )
+        },
+        popEnterTransition = {
+            fadeIn(animationSpec = tween(300)) + 
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            )
+        },
+        popExitTransition = {
+            fadeOut(animationSpec = tween(300)) + 
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            )
+        }
     ) {
         composable(Screen.Main.route) {
             MainScreen(
